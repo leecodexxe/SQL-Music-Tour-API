@@ -1,11 +1,11 @@
 const stages = require('express').Router();
 const db = require('../models');
 const { Op } = require('sequelize');
-const { Stage } = db;
+const { Stage, Event } = db;
 
 stages.get('/', async(req, res) => {
     try {
-        const { name = '' } = req.query;
+        const { name = '', limit=5, offset=0 } = req.query;
         const foundStage = await Stage.findAll({
             where: {
                 name: {
@@ -15,7 +15,9 @@ stages.get('/', async(req, res) => {
             order: [
                 ['capacity', 'DESC'],
                 ['manager', 'ASC']
-            ]
+            ],
+            limit,
+            offset
         });
         res.status(200).json(foundStage);
     } catch (error) {
@@ -23,12 +25,36 @@ stages.get('/', async(req, res) => {
     }
 })
 
-stages.get('/:id', async (req, res) => {
+stages.get('/:name', async (req, res) => {
+    const { name: stageName = '' } = req.params;
     try {
+        console.log(stageName)
         const foundStage = await Stage.findOne({
+            attributes: {
+                exclude: [
+                    'stages_id'
+                ]
+            },
             where: {
-                stages_id: req.params.id
-            }
+                name: {
+                    [Op.iLike] : `%${stageName}%`
+                }
+            },
+            include: {
+                model: Event,
+                as: 'events',
+                attributes: {
+                    exclude: [
+                        'event_id'
+                    ]
+                },
+                through: {
+                    attributes:[]
+                }
+            },
+            order:[
+                [{model:Event,as:'events'},'date','ASC']
+            ]
         });
         res.status(200).json(foundStage);
     } catch(e) {
@@ -53,7 +79,7 @@ stages.put('/:id', async (req, res) => {
     try {
         const updatedStage = await Stage.update(req.body, {
             where: {
-                stages_id: id
+                stage_id: id
             }
         });
         res.status(200).json({
@@ -70,7 +96,7 @@ stages.delete('/:id', async (req, res) => {
     try {
         const deletedStage = await Stage.destroy({
             where: {
-                stages_id: id
+                stage_id: id
             }
         })
         res.status(200).json({

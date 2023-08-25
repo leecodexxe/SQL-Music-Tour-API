@@ -1,7 +1,7 @@
 const express = require('express');
 const bands = express.Router();
 const db = require('../models')
-const { Band } = db;
+const { Band, MeetGreet, Event, SetTime } = db;
 const { Op } = require('sequelize')
 
 bands.get('/', async (req, res) => {
@@ -22,13 +22,64 @@ bands.get('/', async (req, res) => {
     }
 })
 
-bands.get('/:id', async (req, res) => {
+bands.get('/:name', async (req, res) => {
+    const { event: eventName = '' } = req.query;
+
+    const where = {
+        name: {
+            [Op.iLike] : `%${eventName}%`
+        }
+    }
     try {
-        const foundBands = await Band.findOne({
-            where: { band_id: req.params.id }
-        })
+        const foundBand = await Band.findOne({
+            attributes: {
+                exclude: 'band_id'
+            },
+            where: {
+                name: {
+                    [Op.iLike] : `%${req.params.name}%`
+                }
+            },
+            include: [
+                {
+                    model: MeetGreet,
+                    as: 'meetGreets',
+                    attributes: {
+                        exclude: ['meet_greet_id', 'event_id', 'band_id']
+                    },
+                    include: {
+                        model: Event, 
+                        attributes: {
+                            exclude: ['event_id']
+                        },
+                        as: 'event',
+                        where
+                    }
+                },
+                {
+                    model: SetTime,
+                    as: 'setTimes',
+                    attributes: {
+                        exclude: ['set_time_id', 'event_id', 'band_id', 'stage_id']
+                    },
+                    include: {
+                        model: Event,
+                        attributes: {
+                            exclude: ['event_id']
+                        },
+                        as: 'event',
+                        where
+                    }
+                }
+            ],
+            order: [
+                [{ model: MeetGreet, as: 'meetGreets'}, { model: Event, as: 'event'}, 'date', 'ASC'],
+                [{ model: SetTime, as: 'setTimes'}, { model: Event, as: 'event'}, 'date', 'ASC'],
+            ]
+        });
         res.status(202).json(foundBands)
     } catch (error) {
+        console.log(error)
         res.status(500).json(error)
     }
 })
@@ -72,4 +123,5 @@ bands.delete('/:id', async (req, res) => {
         res.status(404)
     }
 })
+
 module.exports = bands;

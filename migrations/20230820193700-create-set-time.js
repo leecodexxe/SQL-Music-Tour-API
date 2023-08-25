@@ -25,6 +25,10 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false,
       },
+      band_id: {
+        type: Sequelize.INTEGER,
+        allowNull:false,
+      },
     });
   },
   async down(queryInterface, Sequelize) {
